@@ -1,0 +1,12 @@
+name: crystal-lmdb
+version: 0.1.0
+
+authors:
+  - Romain Franceschini <franceschini.romain@gmail.com>
+
+crystal: 0.27.0
+
+libraries:
+  lmdb: "0.9.22"
+
+license: MIT
