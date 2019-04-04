@@ -154,6 +154,25 @@ module LMDB
       as_value(Float32)
     end
 
+    # Compare two `Value`s according to a particular transaction and database.
+    # Assume both items are keys in the database.
+    #
+    # Returns `0` if the two objects are equal, a negative number if this object
+    # is considered less than *other*, or a positive number otherwise.
+    def cmp_key(other : self, txn : Transaction, db : Database)
+      LibLMDB.cmp(txn, db, self, other)
+    end
+
+    # Compare two `Value`s according to a particular transaction and database.
+    # Assume both items are data items in the database. The given database *db*
+    # must be configured with the sorted duplicates option.
+    #
+    # Returns `0` if the two objects are equal, a negative number if this object
+    # is considered less than *other*, or a positive number otherwise.
+    def cmp_data(other : self, txn : Transaction, db : Database)
+      LibLMDB.dcmp(txn, db, self, other)
+    end
+
     def ==(other : self)
       size == other.size && @data.as(UInt8*).to_slice(size) == other.data.as(UInt8*).to_slice(size)
     end

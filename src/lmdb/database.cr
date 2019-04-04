@@ -32,6 +32,8 @@ module LMDB
   # ```
   class Database
     include Disposable
+    include Enumerable({Value, Value})
+    include Iterable({Value, Value})
 
     @[Flags]
     enum Flag
@@ -204,8 +206,52 @@ module LMDB
       delete(pointerof(key), pointerof(val))
     end
 
-    # Create and yields a `Cursor` to iterate through `self`.
-    def cursor
+    # Create and yields a `ACursor` to iterate through `self`, closed when the
+    # block goes out of scope.
+    #
+    # The created cursor is associated with the current transaction and `self`.
+    # It cannot be used after the database is closed, nor when the transaction
+    # has ended. A cursor in a `Transaction` can be closed before its
+    # transaction ends, and will otherwise be closed when its transaction ends.
+    # A cursor in a `ReadOnlyTransaction` must be closed explicitly, before or
+    # after its transaction ends. It can be reused with `Cursor#renew` before
+    # finally closing it.
+    def cursor(readonly : Bool = false)
+      transaction = @environment.current_transaction
+      cursor = if transaction.readonly?
+                 ReadOnlyCursor.new(transaction, self)
+               else
+                 Cursor.new(transaction, self)
+               end
+      yield cursor
+    ensure
+      cursor.close if cursor
+    end
+
+    # ditto
+    def cursor(readonly : Bool = false)
+      transaction = @environment.current_transaction
+      if transaction.readonly?
+        ReadOnlyCursor.new(transaction, self)
+      else
+        Cursor.new(transaction, self)
+      end
+    end
+
+    def each
+      self.cursor do |c|
+        while pair = c.next?
+          yield pair
+        end
+      end
+    end
+
+    def each
+      RecordIterator.new(cursor)
+    end
+
+    def each_key
+      each { |key, _| yield key }
     end
 
     def do_close
@@ -218,6 +264,26 @@ module LMDB
 
     def to_unsafe
       @handle
+    end
+
+    private class RecordIterator
+      include Iterator({Value, Value})
+
+      def initialize(@cursor : ACursor)
+      end
+
+      def next
+        if pair = @cursor.next?
+          pair
+        else
+          @cursor.close
+          stop
+        end
+      end
+
+      def rewind
+        @cursor.first
+      end
     end
   end
 end
