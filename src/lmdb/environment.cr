@@ -4,6 +4,29 @@ module LMDB
     ::LMDB::Environment::Flag.flags({{*values}})
   end
 
+  # Unix file access privilegies.
+  @[Flags]
+  enum FileMode
+    OwnerRead  = 0o400,
+    OwnerWrite = 0o200,
+    OwnerExec  = 0o100,
+
+    GroupRead  = 0o040,
+    GroupWrite = 0o020,
+    GroupExec  = 0o010,
+
+    OtherRead  = 0o004,
+    OtherWrite = 0o002,
+    OtherExec  = 0o001,
+
+    # Read/Write access for everyone
+    Default = OwnerRead | OwnerWrite | GroupRead | GroupWrite | OtherRead | OtherWrite,
+
+    OwnerAll = OwnerRead | OwnerWrite | OwnerExec,
+    GroupAll = GroupRead | GroupWrite | GroupExec,
+    OtherAll = OtherRead | OtherWrite | OtherExec
+  end
+
   # Class for an LMDB database environment. An environment may contain
   # multiple databases, all residing in the same shared-memory map and
   # underlying disk file. A database is a key-value table.
@@ -43,46 +66,58 @@ module LMDB
     end
 
     @handle : LibLMDB::Env
-
-    # Yields a new `Environment`, which is automatically closed when the block
-    # goes out of scope.
-    #
-    # Example:
-    # ```
-    # Environment.open("mydbdir") do |env|
-    #   # ...
-    # end
-    # ```
-    def self.open(path : String, flags : Flag = Flag::NoTls, mode = 0o0644)
-      env = self.new(path, flags, mode)
-      yield env
-    ensure
-      env.close
-    end
+    @current_transaction : ATransaction?
 
     # Create and opens a new `Environment` under *path* with given options.
-    def initialize(path : String, flags : Flag = Flag::NoTls, mode = 0o0644)
-      check LibLMDB.env_create(out @handle)
+    #
+    # - *max_dbs*: sets the maximum number of named databases in the environment.
+    # - *mode*: the POSIX permissions to set on created files.
+    # - *map_size*: sets the size of the memory map to be allocated for this
+    #   environment, in bytes. The size should be a multiple of the OS page
+    #   size. The default is 10485760 bytes. The size of the memory map is also
+    #   the maximum size of the database.
+    def initialize(path : String, flags : Flag = Flag::NoTls,
+                   mode : FileMode = FileMode.new(0o644), max_dbs : Int = 0,
+                   map_size : Int = 0)
+      LMDB.check LibLMDB.env_create(out @handle)
+
+      if max_dbs > 0
+        LMDB.check LibLMDB.env_set_maxdbs(self, max_dbs)
+      end
+
+      if map_size > 0
+        LMDB.check LibLMDB.env_set_mapsize(self, map_size)
+      end
+
       open(path, flags, mode)
+      self
     end
 
     # Actually opens the environment.
-    #
-    # Closes the environment in case
-    private def open(path : String, flags : Flag, mode : Int32)
-      check LibLMDB.env_open(self, path, flags.value, mode)
-      self
+    private def open(path : String, flags : Flag, mode : FileMode)
+      LMDB.check LibLMDB.env_open(self, path, flags.value, mode)
     rescue e
       close
       raise e
     end
 
-    # Set the maximum number of named databases for `self`.
-    #
-    # Set this parameter only if multiple databases will be used in the
-    # environment.
-    def max_named_databases=(n : Int)
-      check LibLMDB.env_set_maxdbs(self, n)
+    # :nodoc:
+    def current_transaction? : ATransaction?
+      @current_transaction
+    end
+
+    # :nodoc:
+    def current_transaction : ATransaction
+      if txn = @current_transaction
+        txn
+      else
+        raise "An active transaction is required"
+      end
+    end
+
+    # :nodoc:
+    def current_transaction=(txn : ATransaction?)
+      @current_transaction = txn
     end
 
     # Returns the maximum size of keys that can be written.
@@ -92,17 +127,17 @@ module LMDB
 
     # Set environment flags.
     def flags=(flags : Flag)
-      check LibLMDB.env_set_flags(self, flags.value, 1)
+      LMDB.check LibLMDB.env_set_flags(self, flags.value, 1)
     end
 
     # Clears environment flags.
     def clear_flags(flags : Flag)
-      check LibLMDB.env_set_flags(self, flags.value, 0)
+      LMDB.check LibLMDB.env_set_flags(self, flags.value, 0)
     end
 
     # Get environment flags.
     def flags : Flag
-      check LibLMDB.env_get_flags(self, out flags)
+      LMDB.check LibLMDB.env_get_flags(self, out flags)
       Flag.new(flags)
     end
 
@@ -113,7 +148,7 @@ module LMDB
 
     # Returns the path to the database environment files.
     def path : String
-      check LibLMDB.env_get_path(self, out path)
+      LMDB.check LibLMDB.env_get_path(self, out path)
       String.new(path)
     end
 
@@ -125,30 +160,30 @@ module LMDB
     # This option consumes more CPU and runs more slowly than the default.
     def dump(to path : String, compact : Bool = false)
       if compact
-        check LibLMDB.env_copy2(self, path, LibLMDB::CP_COMPACT)
+        LMDB.check LibLMDB.env_copy2(self, path, LibLMDB::CP_COMPACT)
       else
-        check LibLMDB.env_copy(self, path)
+        LMDB.check LibLMDB.env_copy(self, path)
       end
     end
 
     # Returns raw information about `self`.
     def info : LibLMDB::Envinfo
-      check LibLMDB.env_info(self, out info)
+      LMDB.check LibLMDB.env_info(self, out info)
       info
     end
 
     # Returns raw statistics about `self`.
     def stat : LibLMDB::Stat
-      check LibLMDB.env_stat(self, out stat)
+      LMDB.check LibLMDB.env_stat(self, out stat)
       stat
     end
 
     # Set the memory map size to use for `self`.
     #
     # The size should be a multiple of the OS page size.
-    # This method may be called if no transactions are active in this process.
+    # This method may be called if no transactions are active.
     def map_size=(size)
-      check LibLMDB.env_set_mapsize(self, size)
+      LMDB.check LibLMDB.env_set_mapsize(self, size)
     end
 
     # Close the environment and release the memory map when `self` is disposed
@@ -157,29 +192,76 @@ module LMDB
       LibLMDB.env_close(self)
     end
 
-    # Returns the main database associated with `self`.
-    def open_db(flags : Database::Flag = Database::Flag::None,
-                transaction : Transaction? = nil) : Database
-      transaction = txn || begin_transaction
-      check LibLMDB.dbi_open(transaction, nil, flags, out database)
-      Database.new(self, database)
-    ensure
-      transaction.abort if txn.nil?
+    # Opens and returns the main `Database` associated with `self`. Each
+    # environment has an unnamed database. Keys are Database names in the
+    # unnamed database, and may be read but not written.
+    #
+    # A database needs to be opened (or created) within a transaction. If a
+    # pending transaction for this environment exists, it will be used for this
+    # purpose. Otherwise, a new `ReadOnlyTransaction` is created.
+    #
+    # If a transaction is created specifically, it will be commited before
+    # the `Database` is returned. Otherwise, no particular action on the
+    # existing pending transaction is performed.
+    def open_db(flags : Database::Flag = LMDB.db_flags(None)) : Database
+      within_transaction do |transaction|
+        Database.new(self, transaction, flags)
+      end
     end
 
-    # Open a named database.
-    def open_db(name : String, flags : Database::Flag = db_flags(None),
-                transaction : Transaction? = nil) : Database
-      transaction = txn || begin_transaction
-      check LibLMDB.dbi_open(transaction, name, flags, out database)
-      Database.new(self, database)
-    ensure
-      transaction.abort if txn.nil?
+    # Opens and yields the main `Database` associated with `self`. Each
+    # environment has an unnamed database. Keys are Database names in the
+    # unnamed database, and may be read but not written.
+    #
+    # A database needs to be opened (or created) within a transaction. If a
+    # pending transaction for this environment exists, it will be used for this
+    # purpose. Otherwise, a new `ReadOnlyTransaction` is created.
+    #
+    # If a transaction is created specifically, it will be commited when the
+    # block goes out of scope. Otherwise, no particular action on the
+    # existing pending transaction is performed.
+    def open_db(flags : Database::Flag = LMDB.db_flags(None))
+      within_transaction do |transaction|
+        yield Database.new(self, transaction, flags)
+      end
     end
 
-    # Create a transaction for use with the environment.
-    def begin_transaction(readonly : Bool = false)
-      Transaction.new(self, readonly)
+    # Opens and returns the a *named* `Database` associated with `self`. If
+    # the database is newly created, it will not be available in other
+    # transactions until the transaction that is creating the database commits.
+    # If the transaction creating the database aborts, the database is not
+    # created.
+    #
+    # A database needs to be opened (or created) within a transaction. If a
+    # pending transaction for this environment exists, it will be used for this
+    # purpose. Otherwise, a new `Transaction` is created.
+    #
+    # If a transaction is created specifically, it will be commited before
+    # the `Database` is returned. Otherwise, no particular action on the
+    # existing pending transaction is performed.
+    def open_db(name : String, flags : Database::Flag = LMDB.db_flags(None)) : Database
+      within_transaction do |transaction|
+        Database.new(self, name, transaction, flags)
+      end
+    end
+
+    # Opens and yields the a *named* `Database` associated with `self`. If
+    # the database is newly created, it will not be available in other
+    # transactions until the transaction that is creating the database commits.
+    # If the transaction creating the database aborts, the database is not
+    # created.
+    #
+    # A database needs to be opened (or created) within a transaction. If a
+    # pending transaction for this environment exists, it will be used for this
+    # purpose. Otherwise, a new `Transaction` is created.
+    #
+    # If a transaction is created specifically, it will be commited before
+    # the `Database` is returned. Otherwise, no particular action on the
+    # existing pending transaction is performed.
+    def open_db(name : String, flags : Database::Flag = LMDB.db_flags(None))
+      within_transaction do |transaction|
+        yield Database.new(self, name, transaction, flags)
+      end
     end
 
     # Create and yields a transaction for use with the environment.
@@ -187,13 +269,44 @@ module LMDB
     # The transaction commits when the block goes out of scope. It is aborted
     # if an exception is raised or if an explicit call to `Transaction#abort` is
     # made.
-    def transaction(readonly : Bool = false)
-      txn = begin_transaction(readonly)
+    def transaction(on db : Database? = nil, readonly : Bool = false)
+      txn = readonly ? ReadOnlyTransaction.new(self, db) : Transaction.new(self, db)
       yield txn
       txn.commit
     rescue ex
-      txn.abort
+      txn.abort if txn
       raise ex
+    end
+
+    # Create a transaction for use with the environment.
+    def transaction(on db : Database? = nil, readonly : Bool = false)
+      if readonly
+        ReadOnlyTransaction.new(self, db)
+      else
+        Transaction.new(self, db)
+      end
+    end
+
+    private def within_transaction(db : Database? = nil, readonly : Bool = false)
+      new_txn = false
+      transaction = @current_transaction || self.transaction(db, readonly).tap {
+        new_txn = true
+      }
+
+      val = yield transaction
+
+      transaction.commit if new_txn
+      val
+    rescue ex
+      transaction.abort if transaction && new_txn
+      raise ex
+    end
+
+    # Remove the given `Database`.
+    def drop(db : Database)
+      within_transaction do |transaction|
+        LMDB.check LibLMDB.drop(transaction, self, 1)
+      end
     end
 
     def finalize

@@ -27,7 +27,9 @@ module LMDB
   #   end
   # end
   # ```
-  struct Cursor
+  private abstract struct ACursor
+    # include Iterator(Pair)
+
     @[Flags]
     enum Flag
       NoOverwrite = LibLMDB::NOOVERWRITE
@@ -39,10 +41,55 @@ module LMDB
       Multiple    = LibLMDB::MULTIPLE
     end
 
+    @handle : LibLMDB::Cursor?
+
+    # Whether `self` is a readonly cursor.
+    abstract def readonly? : Bool
+
+    # Close this cursor.
+    #
+    # `self` must not be used after this call.
+    def close
+      LMDB.check LibLMDB.cursor_close(self)
+    end
+
+    # Returns the number of duplicates for the current key.
+    def count
+      LMDB.check LibLMDB.cursor_count(self, out count)
+      count
+    end
+
     # mdb_cursor_open
-    # mdb_cursor_close
     # mdb_cursor_get
     # mdb_cursor_put
-    # mdb_cursor_del
+
+    def to_unsafe
+      @handle
+    end
+  end
+
+  struct Cursor < ACursor
+    def readonly?
+      false
+    end
+
+    # Delete current key/value pair.
+    def delete
+      LMDB.check LibLMDB.cursor_del(self, 0)
+    end
+
+    # Delete all data associated with the current key.
+    #
+    # NOTE: This method should only be called if the underlying database was
+    # opened with DupSort flag.
+    def delete_all
+      LMDB.check LibLMDB.cursor_del(self, LibLMDB::NODUPDATA)
+    end
+  end
+
+  struct ReadOnlyCursor < ACursor
+    def readonly?
+      true
+    end
   end
 end

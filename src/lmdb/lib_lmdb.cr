@@ -44,26 +44,26 @@ lib LibLMDB
   alias Env = Void*
 
   struct Val
-    mv_size : LibC::SizeT
-    mv_data : Void*
+    size : LibC::SizeT
+    data : Void*
   end
 
   struct Stat
-    ms_psize : LibC::UInt
-    ms_depth : LibC::UInt
-    ms_branch_pages : LibC::SizeT
-    ms_leaf_pages : LibC::SizeT
-    ms_overflow_pages : LibC::SizeT
-    ms_entries : LibC::SizeT
+    psize : LibC::UInt
+    depth : LibC::UInt
+    branch_pages : LibC::SizeT
+    leaf_pages : LibC::SizeT
+    overflow_pages : LibC::SizeT
+    entries : LibC::SizeT
   end
 
   struct Envinfo
-    me_mapaddr : Void*
-    me_mapsize : LibC::SizeT
-    me_last_pgno : LibC::SizeT
-    me_last_txnid : LibC::SizeT
-    me_maxreaders : LibC::UInt
-    me_numreaders : LibC::UInt
+    mapaddr : Void*
+    mapsize : LibC::SizeT
+    last_pgno : LibC::SizeT
+    last_txnid : LibC::SizeT
+    maxreaders : LibC::UInt
+    numreaders : LibC::UInt
   end
 
   enum CursorOp

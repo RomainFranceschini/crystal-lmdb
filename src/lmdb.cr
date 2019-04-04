@@ -1,12 +1,12 @@
 require "db"
 require "./lmdb/lib_lmdb"
 require "./lmdb/types"
-require "./lmdb/exception"
+require "./lmdb/error"
 require "./lmdb/disposable"
-require "./lmdb/environment"
 require "./lmdb/database"
 require "./lmdb/transaction"
 require "./lmdb/cursor"
+require "./lmdb/environment"
 
 module LMDB
   VERSION = "0.1.0"
@@ -19,7 +19,8 @@ module LMDB
     {major, minor, patch}
   end
 
-  # Open and yield an LMDB database `Environment`.
+  # Open and yields an LMDB database `Environment`. The environment is closed
+  # when the block goes out of scope.
   #
   # Example:
   # ```
@@ -27,7 +28,13 @@ module LMDB
   #   # ...
   # end
   # ```
-  def self.open(path : String, flags : Environment::Flags = env_flags(NoTls), mode = 0o0644) : Environment
-    Environment.open(path, flags, mode) { |env| yield env }
+  #
+  # See `Environment#new`.
+  def self.open(path : String, flags : Environment::Flag = env_flags(NoTls),
+                mode = FileMode.new(0o644), max_dbs : Int = 0, map_size : Int = 0)
+    env = Environment.new(path, flags, mode, max_dbs, map_size)
+    yield env
+  ensure
+    env.close if env
   end
 end

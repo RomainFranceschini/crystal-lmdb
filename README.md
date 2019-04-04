@@ -1,14 +1,29 @@
 # crystal-lmdb
 
-TODO: Write a description here
+Crystal wrapper around the Lightning Memory-Mapped Database ([LMDB](https://symas.com/lmdb/)).
+
+LMDB is a fast embedded transactional database with the following properties:
+  - Key/value store.
+  - Ordered map interface (keys are lexicographically sorted).
+  - Reader/writers transactions that don't block each other.
+  - ACID compliant, with nested transactions.
+
+This wrapper tries to add as little overhead as possible, by avoiding copy and allocations whenever possible.
 
 ## Installation
+
+### Requirements 
+
+- Install [LMDB](https://symas.com/lmdb/) >= 0.9.23 on your system and makes sure the library can be found by the linker.
+
+### Shard
 
 1. Add the dependency to your `shard.yml`:
 ```yaml
 dependencies:
   crystal-lmdb:
-    github: your-github-user/crystal-lmdb
+    github: rumenzu/crystal-lmdb
+    version: 0.1.0
 ```
 2. Run `shards install`
 
@@ -16,13 +31,19 @@ dependencies:
 
 ```crystal
 require "crystal-lmdb"
+
+LMDB.open("./tmp/simpledb") do |env|
+  env.transaction do
+    env.open_db do |db|
+      db.put('a', 'a'.ord)
+      db.put('b', 'b'.ord)
+      db.put('c', 'c'.ord)
+    end
+  end
+end
 ```
 
-TODO: Write usage instructions here
-
-## Development
-
-TODO: Write development instructions here
+See also the `examples` folder.
 
 ## Contributing
 
@@ -34,4 +55,4 @@ TODO: Write development instructions here
 
 ## Contributors
 
-- [Romain Franceschini](https://github.com/your-github-user) - creator and maintainer
+- [Romain Franceschini](https://github.com/rumenzu) - creator and maintainer
