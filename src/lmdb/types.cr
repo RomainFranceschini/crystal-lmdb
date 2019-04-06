@@ -11,7 +11,7 @@ module LMDB
       {% if !type.union? && LMDB::TYPES.any? { |t| t.resolve.class == type.class } %}
         # Support TYPES
       {% else %}
-        {{ raise "Can only create LMDB::Value with types included in LMDB::TYPES, not #{type}" }}
+        {{ raise "LMDB wrapper doesn't support type #{type}" }}
       {% end %}
     end
 
@@ -81,6 +81,18 @@ module LMDB
         buf.copy_from(@data.as(Pointer(T)), count)
         count
       end
+    end
+
+    def as_value(of klass : String.class)
+      as_str
+    end
+
+    def as_value(of klass : Array(T).class) forall T
+      as_array(T)
+    end
+
+    def as_value(of klass : Slice(T).class) forall T
+      as_array(T)
     end
 
     def as_value(of klass : T.class) : T forall T
