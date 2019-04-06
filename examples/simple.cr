@@ -1,11 +1,11 @@
 require "../src/lmdb"
 require "file_utils"
 
-path = "./tmp/simpledb"
+path = "./tmp/exdb"
 FileUtils.rm_r(path) if Dir.exists?(path)
 Dir.mkdir_p(path)
 
-LMDB.open("./tmp/simpledb", max_dbs: 10) do |env|
+LMDB.open(path, max_dbs: 10) do |env|
   env.database do |db|
     db.put('a', 'a'.ord)
     db.put('b', 'b'.ord)
