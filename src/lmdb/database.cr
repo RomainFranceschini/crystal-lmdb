@@ -266,7 +266,7 @@ module LMDB
       @handle
     end
 
-    private class RecordIterator
+    private struct RecordIterator
       include Iterator({Value, Value})
 
       def initialize(@cursor : AbstractCursor)
