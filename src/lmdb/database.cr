@@ -4,6 +4,23 @@ module LMDB
     ::LMDB::Database::Flag.flags({{*values}})
   end
 
+  @[Flags]
+  enum PutFlags
+    # Store the record only if it does not appear in the database.
+    NoDupData = LibLMDB::NODUPDATA,
+    # Store the record only if the key does not already appear in the database.
+    # The data parameter will be set to point to the existing item.
+    NoOverwrite = LibLMDB::NOOVERWRITE,
+    # Reserve space for data, but don't store the given data. Returns a pointer
+    # to be fill later in the transaction.
+    Reserve = LibLMDB::RESERVE,
+    # Store the record at the end of the database. Fast if keys are in the
+    # correct order.
+    Append = LibLMDB::APPEND,
+    # As above, but for sorted duplicate data.
+    AppendDup = LibLMDB::APPENDDUP
+  end
+
   # A `Database` is a key-value store, which is part of an `Environment`.
   #
   # By default, each key maps to one value. However, a `Database` can be
@@ -37,13 +54,20 @@ module LMDB
 
     @[Flags]
     enum Flag
+      # Assume keys are string to be compared in reverse order (from end to beginning)
       ReverseKey = LibLMDB::REVERSEKEY
-      DupSort    = LibLMDB::DUPSORT
+      # Keys are allowed to be associated with multiple data items, which are stored in a sorted fashion.
+      DupSort = LibLMDB::DUPSORT
+      # Keys are binary integers in native byte order and sorted as such, all key must be of the same size.
       IntegerKey = LibLMDB::INTEGERKEY
-      DupFixed   = LibLMDB::DUPFIXED
+      # Multiple data items are all the same size
+      DupFixed = LibLMDB::DUPFIXED
+      # Duplicate data items are binary integers
       IntegerDup = LibLMDB::INTEGERDUP
+      # Duplicate data items are compared in reverse order.
       ReverseDup = LibLMDB::REVERSEDUP
-      Create     = LibLMDB::CREATE
+      # Create the database if id doesn't exist.
+      Create = LibLMDB::CREATE
     end
 
     getter environment : Environment
@@ -51,19 +75,25 @@ module LMDB
 
     def initialize(@environment : Environment, transaction : AbstractTransaction,
                    flags : Flag = Flag::None)
+      flags = ensure_flags(flags)
       LMDB.check LibLMDB.dbi_open(transaction, nil, flags, out handle)
       @handle = handle
     end
 
     def initialize(@environment : Environment, name : String,
                    transaction : AbstractTransaction, flags : Flag = Flag::None)
+      flags = ensure_flags(flags)
       LMDB.check LibLMDB.dbi_open(transaction, name, flags, out handle)
       @handle = handle
     end
 
-    def flags(txn : Transaction) : Flag
-      check LibLMDB.dbi_flags(@environment.current_transaction, self, out flags)
-      Flag.new(flags)
+    protected def ensure_flags(flags)
+      flags
+    end
+
+    def flags : Flag
+      LMDB.check LibLMDB.dbi_flags(@environment.current_transaction, self, out flags)
+      Flag.new(flags.to_i)
     end
 
     # Empty out the database.
@@ -85,12 +115,12 @@ module LMDB
     end
 
     # See `#get`
-    def [](key) : Value
+    def [](key)
       get(key)
     end
 
     # See `#get?`
-    def []?(key) : Value?
+    def []?(key)
       get?(key)
     end
 
@@ -101,27 +131,29 @@ module LMDB
 
     # Stores the given key/value pair into `self`.
     #
-    # By default, a matching key replaces contents with given *value* if sorted
-    # duplicates are disallowed. Otherwise, a duplicate data item is appended.
+    # By default, a matching key replaces contents with given *value*.
     def put(key : String | Pointer(K) | Slice(K) | Array(K) | StaticArray(K, _),
-            value : String | Pointer(V) | Slice(V) | Array(V) | StaticArray(V, _)) forall K, V
+            value : String | Pointer(V) | Slice(V) | Array(V) | StaticArray(V, _),
+            flags : PutFlags = PutFlags::None) forall K, V
       dbk = Value.new(key)
       dbv = Value.new(value)
       LMDB.check LibLMDB.put(@environment.current_transaction, self, dbk, dbv, 0)
     end
 
     # ditto
-    def put(key : String | Pointer(K) | Slice(K) | Array(K) | StaticArray(K, _), val : V) forall K, V
+    def put(key : String | Pointer(K) | Slice(K) | Array(K) | StaticArray(K, _),
+            val : V, flags : PutFlags = PutFlags::None) forall K, V
       put(key, pointerof(val))
     end
 
     # ditto
-    def put(key : K, val : String | Pointer(V) | Slice(V) | Array(V) | StaticArray(V, _)) forall K, V
+    def put(key : K, val : String | Pointer(V) | Slice(V) | Array(V) | StaticArray(V, _),
+            flags : PutFlags = PutFlags::None) forall K, V
       put(pointerof(key), val)
     end
 
     # ditto
-    def put(key : K, val : V) forall K, V
+    def put(key : K, val : V, flags : PutFlags = PutFlags::None) forall K, V
       put(pointerof(key), pointerof(val))
     end
 
@@ -175,35 +207,6 @@ module LMDB
     # ditto
     def delete(key : K) forall K
       delete(pointerof(key))
-    end
-
-    # Deletes all data matching the given *value* associated with *key* from
-    # `self`.
-    #
-    # If `self` does not support sorted duplicates (DUPSORT), *value* is
-    # ignored.
-    def delete(key : String | Pointer(K) | Slice(K) | Array(K) | StaticArray(K, _),
-               value : String | Pointer(V) | Slice(V) | Array(V) | StaticArray(V, _)) forall K, V
-      dbk = Value.new(key)
-      dbv = Value.new(value)
-      LMDB.check LibLMDB.del(@environment.current_transaction, self, dbk, dbv)
-    end
-
-    # ditto
-    def delete(key : String | Pointer(K) | Slice(K) | Array(K) | StaticArray(K, _),
-               val : V) forall K, V
-      delete(key, pointerof(val))
-    end
-
-    # ditto
-    def delete(key : K,
-               val : String | Pointer(V) | Slice(V) | Array(V) | StaticArray(V, _)) forall K, V
-      delete(pointerof(k), val)
-    end
-
-    # ditto
-    def delete(key : K, val : V) forall K, V
-      delete(pointerof(key), pointerof(val))
     end
 
     # Create and yields a `AbstractCursor` to iterate through `self`, closed when the
@@ -284,6 +287,187 @@ module LMDB
       def rewind
         @cursor.first
       end
+    end
+  end
+
+  class MapDatabase(K, V) < Database
+    def ensure_flags(flags)
+      {% if K < Int %}
+        flags | Flag::IntegerKey
+      {% else %}
+        flags
+      {% end %}
+    end
+
+    def get(key : Pointer(K) | Slice(K) | Array(K) | StaticArray(K, _)) : V
+      super(key).as_value(V)
+    end
+
+    def get(key : K) : V
+      {% if K == String %}
+        get?(key.to_slice, val)
+      {% else %}
+        get?(pointerof(key), val)
+      {% end %}
+    end
+
+    def get?(key : Pointer(K) | Slice(K) | Array(K) | StaticArray(K, _)) : V?
+      super(key).try &.as_value(V)
+    end
+
+    def get?(key : K) : Value? forall K
+      {% if K == String %}
+        get?(key.to_slice, val)
+      {% else %}
+        get?(pointerof(key), val)
+      {% end %}
+    end
+
+    def delete(key : Pointer(K) | Slice(K) | Array(K) | StaticArray(K, _))
+      dbk = Value.new(key)
+      LMDB.check LibLMDB.del(@environment.current_transaction, self, dbk, nil)
+    end
+
+    def delete(key : K)
+      {% if K == String %}
+        delete(key.to_slice, val)
+      {% else %}
+        delete(pointerof(key), val)
+      {% end %}
+    end
+
+    def put(key : Pointer(K) | Slice(K) | Array(K) | StaticArray(K, _),
+            value : Pointer(V) | Slice(V) | Array(V) | StaticArray(V, _),
+            flags : PutFlags = PutFlags::None)
+      dbk = Value.new(key)
+      dbv = Value.new(value)
+      LMDB.check LibLMDB.put(@environment.current_transaction, self, dbk, dbv, flags)
+    end
+
+    # ditto
+    def put(key : Pointer(K) | Slice(K) | Array(K) | StaticArray(K, _),
+            val : V, flags : PutFlags = PutFlags::None)
+      {% if V == String %}
+        put(key, val.to_slice, flags)
+      {% else %}
+        put(key, pointerof(val), flags)
+      {% end %}
+    end
+
+    # ditto
+    def put(key : K, val : Pointer(V) | Slice(V) | Array(V) | StaticArray(V, _),
+            flags : PutFlags = PutFlags::None)
+      {% if K == String %}
+        put(key.to_slice, val, flags)
+      {% else %}
+        put(pointerof(key), val, flags)
+      {% end %}
+    end
+
+    # ditto
+    def put(key : K, val : V, flags : PutFlags = PutFlags::None)
+      {% if K == String && V == String %}
+        put(key.to_slice, val.to_slice, flags)
+      {% elsif K == String %}
+        put(key.to_slice, pointerof(val), flags)
+      {% elsif V == String %}
+        put(pointerof(key), val.to_slice, flags)
+      {% else %}
+        put(pointerof(key), pointerof(val), flags)
+      {% end %}
+    end
+  end
+
+  class MultiDatabase < Database
+    def ensure_flags(flags)
+      super(flags) | Flag::DupSort
+    end
+
+    # Deletes all data matching the given *value* associated with *key* from
+    # `self`.
+    #
+    # If `self` does not support sorted duplicates (DUPSORT), *value* is
+    # ignored.
+    def delete(key : String | Pointer(K) | Slice(K) | Array(K) | StaticArray(K, _),
+               value : String | Pointer(V) | Slice(V) | Array(V) | StaticArray(V, _)) forall K, V
+      dbk = Value.new(key)
+      dbv = Value.new(value)
+      LMDB.check LibLMDB.del(@environment.current_transaction, self, dbk, dbv)
+    end
+
+    # ditto
+    def delete(key : String | Pointer(K) | Slice(K) | Array(K) | StaticArray(K, _),
+               val : V) forall K, V
+      delete(key, pointerof(val))
+    end
+
+    # ditto
+    def delete(key : K,
+               val : String | Pointer(V) | Slice(V) | Array(V) | StaticArray(V, _)) forall K, V
+      delete(pointerof(k), val)
+    end
+
+    # ditto
+    def delete(key : K, val : V) forall K, V
+      delete(pointerof(key), pointerof(val))
+    end
+  end
+
+  class MultiMapDatabase(K, V) < MapDatabase(K, V)
+    def ensure_flags(flags)
+      flags |= super(flags) | Flag::DupSort
+      {% if V < Int %}
+        flags | Flag::IntegerDup
+      {% elsif LMDB::TYPES.any? { |t| t.resolve.class == V.class } %}
+        flags | Flag::DupFixed
+      {% else %}
+        flags
+      {% end %}
+    end
+
+    # Deletes all data matching the given *value* associated with *key* from
+    # `self`.
+    #
+    # If `self` does not support sorted duplicates (DUPSORT), *value* is
+    # ignored.
+    def delete(key : Pointer(K) | Slice(K) | Array(K) | StaticArray(K, _),
+               value : Pointer(V) | Slice(V) | Array(V) | StaticArray(V, _))
+      dbk = Value.new(key)
+      dbv = Value.new(value)
+      LMDB.check LibLMDB.del(@environment.current_transaction, self, dbk, dbv)
+    end
+
+    # ditto
+    def delete(key : Pointer(K) | Slice(K) | Array(K) | StaticArray(K, _),
+               val : V)
+      {% if V == String %}
+        delete(key, val.to_slice)
+      {% else %}
+        delete(key, pointerof(val))
+      {% end %}
+    end
+
+    # ditto
+    def delete(key : K,
+               val : Pointer(V) | Slice(V) | Array(V) | StaticArray(V, _))
+      {% if K == String %}
+        delete(key.to_slice, val)
+      {% else %}
+        delete(pointerof(key), val)
+      {% end %}
+    end
+
+    # ditto
+    def delete(key : K, val : V)
+      {% if K == String && V == String %}
+        delete(key.to_slice, val.to_slice)
+      {% elsif K == String %}
+        delete(key.to_slice, pointerof(val))
+      {% elsif V == String %}
+        delete(pointerof(key), val.to_slice)
+      {% else %}
+        delete(pointerof(key), pointerof(val))
+      {% end %}
     end
   end
 end
