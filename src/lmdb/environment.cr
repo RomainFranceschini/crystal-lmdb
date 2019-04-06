@@ -203,7 +203,7 @@ module LMDB
     # If a transaction is created specifically, it will be commited before
     # the `Database` is returned. Otherwise, no particular action on the
     # existing pending transaction is performed.
-    def open_db(flags : Database::Flag = LMDB.db_flags(None)) : Database
+    def database(flags : Database::Flag = LMDB.db_flags(None)) : Database
       within_transaction do |transaction|
         Database.new(self, transaction, flags)
       end
@@ -220,7 +220,7 @@ module LMDB
     # If a transaction is created specifically, it will be commited when the
     # block goes out of scope. Otherwise, no particular action on the
     # existing pending transaction is performed.
-    def open_db(flags : Database::Flag = LMDB.db_flags(None))
+    def database(flags : Database::Flag = LMDB.db_flags(None))
       within_transaction do |transaction|
         yield Database.new(self, transaction, flags)
       end
@@ -239,7 +239,7 @@ module LMDB
     # If a transaction is created specifically, it will be commited before
     # the `Database` is returned. Otherwise, no particular action on the
     # existing pending transaction is performed.
-    def open_db(name : String, flags : Database::Flag = LMDB.db_flags(None)) : Database
+    def database(name : String, flags : Database::Flag = LMDB.db_flags(None)) : Database
       within_transaction do |transaction|
         Database.new(self, name, transaction, flags)
       end
@@ -258,7 +258,7 @@ module LMDB
     # If a transaction is created specifically, it will be commited before
     # the `Database` is returned. Otherwise, no particular action on the
     # existing pending transaction is performed.
-    def open_db(name : String, flags : Database::Flag = LMDB.db_flags(None))
+    def database(name : String, flags : Database::Flag = LMDB.db_flags(None))
       within_transaction do |transaction|
         yield Database.new(self, name, transaction, flags)
       end

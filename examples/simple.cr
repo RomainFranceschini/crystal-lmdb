@@ -1,15 +1,12 @@
 require "../src/lmdb"
 require "file_utils"
 
-# Example from https://www.youtube.com/watch?v=Rx1-in-a1Xc
-# 08:21
-
 path = "./tmp/simpledb"
 FileUtils.rm_r(path) if Dir.exists?(path)
 Dir.mkdir_p(path)
 
 LMDB.open("./tmp/simpledb", max_dbs: 10) do |env|
-  env.open_db do |db|
+  env.database do |db|
     db.put('a', 'a'.ord)
     db.put('b', 'b'.ord)
     db.put('c', 'c'.ord)
@@ -33,7 +30,7 @@ LMDB.open("./tmp/simpledb", max_dbs: 10) do |env|
     pp db.get?('b')     # => nil
   end
 
-  env.open_db("cursor", LMDB.db_flags(Create)) do |db|
+  env.database("cursor", LMDB.db_flags(Create)) do |db|
     255.times { |i| db.put(i, i.chr) }
 
     db.each do |key, val|
