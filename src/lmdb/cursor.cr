@@ -212,5 +212,10 @@ module LMDB
     def readonly?
       true
     end
+
+    # Renews cursor, allowing its re-use
+    def renew(transaction : ATransaction)
+      LMDB.check LibLMDB.cursor_renew(transaction, self)
+    end
   end
 end
