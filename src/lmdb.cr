@@ -1,4 +1,3 @@
-require "db"
 require "./lmdb/lib_lmdb"
 require "./lmdb/types"
 require "./lmdb/error"
