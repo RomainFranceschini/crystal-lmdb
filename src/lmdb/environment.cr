@@ -66,7 +66,7 @@ module LMDB
     end
 
     @handle : LibLMDB::Env
-    @current_transaction : ATransaction?
+    @current_transaction : AbstractTransaction?
 
     # Create and opens a new `Environment` under *path* with given options.
     #
@@ -102,12 +102,12 @@ module LMDB
     end
 
     # :nodoc:
-    def current_transaction? : ATransaction?
+    def current_transaction? : AbstractTransaction?
       @current_transaction
     end
 
     # :nodoc:
-    def current_transaction : ATransaction
+    def current_transaction : AbstractTransaction
       if txn = @current_transaction
         txn
       else
@@ -116,7 +116,7 @@ module LMDB
     end
 
     # :nodoc:
-    def current_transaction=(txn : ATransaction?)
+    def current_transaction=(txn : AbstractTransaction?)
       @current_transaction = txn
     end
 

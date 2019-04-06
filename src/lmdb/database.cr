@@ -49,14 +49,14 @@ module LMDB
     getter environment : Environment
     @handle : LibLMDB::Dbi
 
-    def initialize(@environment : Environment, transaction : ATransaction,
+    def initialize(@environment : Environment, transaction : AbstractTransaction,
                    flags : Flag = Flag::None)
       LMDB.check LibLMDB.dbi_open(transaction, nil, flags, out handle)
       @handle = handle
     end
 
     def initialize(@environment : Environment, name : String,
-                   transaction : ATransaction, flags : Flag = Flag::None)
+                   transaction : AbstractTransaction, flags : Flag = Flag::None)
       LMDB.check LibLMDB.dbi_open(transaction, name, flags, out handle)
       @handle = handle
     end
@@ -206,7 +206,7 @@ module LMDB
       delete(pointerof(key), pointerof(val))
     end
 
-    # Create and yields a `ACursor` to iterate through `self`, closed when the
+    # Create and yields a `AbstractCursor` to iterate through `self`, closed when the
     # block goes out of scope.
     #
     # The created cursor is associated with the current transaction and `self`.
@@ -269,7 +269,7 @@ module LMDB
     private class RecordIterator
       include Iterator({Value, Value})
 
-      def initialize(@cursor : ACursor)
+      def initialize(@cursor : AbstractCursor)
       end
 
       def next

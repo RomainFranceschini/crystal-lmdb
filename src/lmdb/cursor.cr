@@ -27,7 +27,7 @@ module LMDB
   #   end
   # end
   # ```
-  private abstract struct ACursor
+  private abstract struct AbstractCursor
     @[Flags]
     enum Flag
       NoOverwrite = LibLMDB::NOOVERWRITE
@@ -41,7 +41,7 @@ module LMDB
 
     @handle : LibLMDB::Cursor
 
-    def initialize(transaction : ATransaction, database : Database)
+    def initialize(transaction : AbstractTransaction, database : Database)
       LMDB.check LibLMDB.cursor_open(transaction, database, out handle)
       @handle = handle
     end
@@ -157,7 +157,7 @@ module LMDB
   end
 
   # Read/write cursor.
-  struct Cursor < ACursor
+  struct Cursor < AbstractCursor
     def readonly?
       false
     end
@@ -208,13 +208,13 @@ module LMDB
   end
 
   # Readonly cursor.
-  struct ReadOnlyCursor < ACursor
+  struct ReadOnlyCursor < AbstractCursor
     def readonly?
       true
     end
 
     # Renews cursor, allowing its re-use
-    def renew(transaction : ATransaction)
+    def renew(transaction : AbstractTransaction)
       LMDB.check LibLMDB.cursor_renew(transaction, self)
     end
   end

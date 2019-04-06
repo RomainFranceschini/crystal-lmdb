@@ -2,7 +2,7 @@ module LMDB
   # An LMDB `Transaction`.
   #
   # TODO: NO_SYNC/NO_METASYNC options
-  private abstract struct ATransaction
+  private abstract struct AbstractTransaction
     @handle : LibLMDB::Txn
     getter environment : Environment
     getter! database : Database
@@ -73,7 +73,7 @@ module LMDB
     # The transaction commits when the block goes out of scope. It is aborted
     # if an exception is raised or if an explicit call to `Transaction#abort` is
     # made.
-    def transaction(readonly : Bool = self.readonly?) : ATransaction
+    def transaction(readonly : Bool = self.readonly?) : AbstractTransaction
       txn = readonly? ? ReadOnlyTransaction.new(@environment, @database, self) : Transaction.new(@environment, @database, self)
       yield txn
       txn.commit
@@ -83,7 +83,7 @@ module LMDB
     end
 
     # Create and returns a nested transaction.
-    def transaction(readonly : Bool = self.readonly?) : ATransaction
+    def transaction(readonly : Bool = self.readonly?) : AbstractTransaction
       if readonly?
         ReadOnlyTransaction.new(@environment, @database, self)
       else
@@ -92,13 +92,13 @@ module LMDB
     end
   end
 
-  struct Transaction < ATransaction
+  struct Transaction < AbstractTransaction
     def readonly? : Bool
       false
     end
   end
 
-  struct ReadOnlyTransaction < ATransaction
+  struct ReadOnlyTransaction < AbstractTransaction
     def initialize(@environment : Environment, @database : Database? = nil, parent : Transaction? = nil)
       LMDB.check LibLMDB.txn_begin(@environment, parent, LibLMDB::RDONLY, out handle)
       @handle = handle
