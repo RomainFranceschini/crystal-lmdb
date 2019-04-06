@@ -193,8 +193,7 @@ module LMDB
     end
 
     # Opens and returns the main `Database` associated with `self`. Each
-    # environment has an unnamed database. Keys are Database names in the
-    # unnamed database, and may be read but not written.
+    # environment has an unnamed database.
     #
     # A database needs to be opened (or created) within a transaction. If a
     # pending transaction for this environment exists, it will be used for this
@@ -210,8 +209,7 @@ module LMDB
     end
 
     # Opens and yields the main `Database` associated with `self`. Each
-    # environment has an unnamed database. Keys are Database names in the
-    # unnamed database, and may be read but not written.
+    # environment has an unnamed database.
     #
     # A database needs to be opened (or created) within a transaction. If a
     # pending transaction for this environment exists, it will be used for this
@@ -262,6 +260,18 @@ module LMDB
       within_transaction do |transaction|
         yield Database.new(self, name, transaction, flags)
       end
+    end
+
+    # Opens and returns a *named* `Database` associated with `self`. Create
+    # the database if it does not exist.
+    def database?(name : String, flags : Database::Flag = LMDB.db_flags(Create))
+      database(name, flags | LMDB.db_flags(Create))
+    end
+
+    # Opens and yields the a *named* `Database` associated with `self`. Create
+    # the database if it does not exist.
+    def database?(name : String, flags : Database::Flag = LMDB.db_flags(Create))
+      yield database(name, flags | LMDB.db_flags(Create))
     end
 
     # Create and yields a transaction for use with the environment.
