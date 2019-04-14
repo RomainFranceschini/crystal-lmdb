@@ -219,12 +219,12 @@ module LMDB
     # A cursor in a `ReadOnlyTransaction` must be closed explicitly, before or
     # after its transaction ends. It can be reused with `Cursor#renew` before
     # finally closing it.
-    def cursor(readonly : Bool = false)
+    def cursor
       transaction = @environment.current_transaction
       cursor = if transaction.readonly?
-                 ReadOnlyCursor.new(transaction, self)
+                 ReadOnlyValueCursor.new(transaction, self)
                else
-                 Cursor.new(transaction, self)
+                 ValueCursor.new(transaction, self)
                end
       yield cursor
     ensure
@@ -232,12 +232,12 @@ module LMDB
     end
 
     # ditto
-    def cursor(readonly : Bool = false)
+    def cursor
       transaction = @environment.current_transaction
       if transaction.readonly?
-        ReadOnlyCursor.new(transaction, self)
+        ReadOnlyValueCursor.new(transaction, self)
       else
-        Cursor.new(transaction, self)
+        ValueCursor.new(transaction, self)
       end
     end
 
@@ -250,7 +250,7 @@ module LMDB
     end
 
     def each
-      RecordIterator.new(cursor)
+      RecordIterator(Value, Value).new(cursor)
     end
 
     def each_key
@@ -269,8 +269,8 @@ module LMDB
       @handle
     end
 
-    private struct RecordIterator
-      include Iterator({Value, Value})
+    private struct RecordIterator(K, V)
+      include Iterator({K, V})
 
       def initialize(@cursor : AbstractCursor)
       end
@@ -375,6 +375,31 @@ module LMDB
       {% else %}
         put(pointerof(key), pointerof(val), flags)
       {% end %}
+    end
+
+    def cursor
+      transaction = @environment.current_transaction
+      cursor = if transaction.readonly?
+                 ReadOnlyCursor(K, V).new(transaction, self)
+               else
+                 Cursor(K, V).new(transaction, self)
+               end
+      yield cursor
+    ensure
+      cursor.close if cursor
+    end
+
+    def cursor
+      transaction = @environment.current_transaction
+      if transaction.readonly?
+        ReadOnlyCursor(K, V).new(transaction, self)
+      else
+        Cursor(K, V).new(transaction, self)
+      end
+    end
+
+    def each
+      RecordIterator(K, V).new(cursor)
     end
   end
 

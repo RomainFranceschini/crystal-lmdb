@@ -23,7 +23,7 @@ LMDB.open(path, map_size: 256*1024*1024) do |env|
   if db
     env.transaction(on: db, readonly: true) do
       db.each do |key, val|
-        puts "'#{key.as_str}' => '#{val.as_str}'"
+        puts "'#{key}' => '#{val}'"
       end
     end
   end
