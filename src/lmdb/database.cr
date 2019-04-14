@@ -305,9 +305,9 @@ module LMDB
 
     def get(key : K) : V
       {% if K == String %}
-        get?(key.to_slice, val)
+        get(key.to_slice)
       {% else %}
-        get?(pointerof(key), val)
+        get(pointerof(key))
       {% end %}
     end
 
@@ -317,9 +317,9 @@ module LMDB
 
     def get?(key : K) : Value? forall K
       {% if K == String %}
-        get?(key.to_slice, val)
+        get?(key.to_slice)
       {% else %}
-        get?(pointerof(key), val)
+        get?(pointerof(key))
       {% end %}
     end
 
@@ -330,9 +330,9 @@ module LMDB
 
     def delete(key : K)
       {% if K == String %}
-        delete(key.to_slice, val)
+        delete(key.to_slice)
       {% else %}
-        delete(pointerof(key), val)
+        delete(pointerof(key))
       {% end %}
     end
 
