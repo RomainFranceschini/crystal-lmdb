@@ -89,6 +89,9 @@ module LMDB
         LMDB.check LibLMDB.env_set_mapsize(self, map_size)
       end
 
+      # ensure NoTls mode
+      flags |= Flag::NoTls
+
       open(path, flags, mode)
       self
     end
