@@ -70,13 +70,13 @@ module LMDB
     def as_slice(of klass : T.class) : Slice(T) forall T
       check_type!({{T}})
       ptr = @data.as(Pointer(T))
-      Slice.new(ptr, @size / sizeof(T))
+      Slice.new(ptr, @size // sizeof(T))
     end
 
     def as_array(of klass : T.class) : Array(T) forall T
       check_type!({{T}})
 
-      count = @size / sizeof(T)
+      count = @size // sizeof(T)
       Array(T).build(count) do |buf|
         buf.copy_from(@data.as(Pointer(T)), count)
         count
