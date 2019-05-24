@@ -21,7 +21,7 @@ This wrapper tries to add as little overhead as possible, by avoiding copy and a
 1. Add the dependency to your `shard.yml`:
 ```yaml
 dependencies:
-  crystal-lmdb:
+  lmdb:
     github: rumenzu/crystal-lmdb
     version: 0.1.0
 ```
@@ -30,7 +30,7 @@ dependencies:
 ## Usage
 
 ```crystal
-require "crystal-lmdb"
+require "lmdb"
 
 LMDB.open("./tmp/simpledb") do |env|
   env.transaction do
