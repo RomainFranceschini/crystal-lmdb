@@ -26,20 +26,20 @@ module LMDB
     @[Flags]
     enum PutFlags
       # Replace the item at the current cursor position. The key must be provided.
-      Current = LibLMDB::CURRENT,
+      Current = LibLMDB::CURRENT
       # Store the record only if it does not appear in the database.
-      NoDupData = LibLMDB::NODUPDATA,
+      NoDupData = LibLMDB::NODUPDATA
       # Store the record only if the key does not already appear in the database.
       # The data parameter will be set to point to the existing item.
-      NoOverwrite = LibLMDB::NOOVERWRITE,
+      NoOverwrite = LibLMDB::NOOVERWRITE
       # Reserve space for data, but don't store the given data. Returns a pointer
       # to be fill later in the transaction.
-      Reserve = LibLMDB::RESERVE,
+      Reserve = LibLMDB::RESERVE
       # Store the record at the end of the database. Fast if keys are in the
       # correct order.
-      Append = LibLMDB::APPEND,
+      Append = LibLMDB::APPEND
       # As above, but for sorted duplicate data.
-      AppendDup = LibLMDB::APPENDDUP,
+      AppendDup = LibLMDB::APPENDDUP
       # Sort multiple contiguous data in a single request.
       Multiple = LibLMDB::MULTIPLE
     end
@@ -358,7 +358,7 @@ module LMDB
     include CursorGet(K, V)
     include CursorPut(K, V)
 
-    def readonly?
+    def readonly? : Bool
       false
     end
   end
@@ -367,7 +367,7 @@ module LMDB
   struct ReadOnlyCursor(K, V) < AbstractCursor
     include CursorGet(K, V)
 
-    def readonly?
+    def readonly? : Bool
       true
     end
 
@@ -381,7 +381,7 @@ module LMDB
     include ValueCursorGet
     include ValueCursorPut
 
-    def readonly?
+    def readonly? : Bool
       false
     end
   end
@@ -389,7 +389,7 @@ module LMDB
   struct ReadOnlyValueCursor < AbstractCursor
     include ValueCursorGet
 
-    def readonly?
+    def readonly? : Bool
       true
     end
 
