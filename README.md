@@ -55,4 +55,4 @@ See also the `examples` folder.
 
 ## Contributors
 
-- [Romain Franceschini](https://github.com/rumenzu) - creator and maintainer
+- [Romain Franceschini](https://github.com/RomainFranceschini) - creator and maintainer
