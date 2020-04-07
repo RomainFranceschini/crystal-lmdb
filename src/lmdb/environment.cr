@@ -7,23 +7,23 @@ module LMDB
   # Unix file access privilegies.
   @[Flags]
   enum FileMode
-    OwnerRead  = 0o400,
-    OwnerWrite = 0o200,
-    OwnerExec  = 0o100,
+    OwnerRead  = 0o400
+    OwnerWrite = 0o200
+    OwnerExec  = 0o100
 
-    GroupRead  = 0o040,
-    GroupWrite = 0o020,
-    GroupExec  = 0o010,
+    GroupRead  = 0o040
+    GroupWrite = 0o020
+    GroupExec  = 0o010
 
-    OtherRead  = 0o004,
-    OtherWrite = 0o002,
-    OtherExec  = 0o001,
+    OtherRead  = 0o004
+    OtherWrite = 0o002
+    OtherExec  = 0o001
 
     # Read/Write access for everyone
-    Default = OwnerRead | OwnerWrite | GroupRead | GroupWrite | OtherRead | OtherWrite,
+    Default = OwnerRead | OwnerWrite | GroupRead | GroupWrite | OtherRead | OtherWrite
 
-    OwnerAll = OwnerRead | OwnerWrite | OwnerExec,
-    GroupAll = GroupRead | GroupWrite | GroupExec,
+    OwnerAll = OwnerRead | OwnerWrite | OwnerExec
+    GroupAll = GroupRead | GroupWrite | GroupExec
     OtherAll = OtherRead | OtherWrite | OtherExec
   end
 

@@ -7,16 +7,16 @@ module LMDB
   @[Flags]
   enum PutFlags
     # Store the record only if it does not appear in the database.
-    NoDupData = LibLMDB::NODUPDATA,
+    NoDupData = LibLMDB::NODUPDATA
     # Store the record only if the key does not already appear in the database.
     # The data parameter will be set to point to the existing item.
-    NoOverwrite = LibLMDB::NOOVERWRITE,
+    NoOverwrite = LibLMDB::NOOVERWRITE
     # Reserve space for data, but don't store the given data. Returns a pointer
     # to be fill later in the transaction.
-    Reserve = LibLMDB::RESERVE,
+    Reserve = LibLMDB::RESERVE
     # Store the record at the end of the database. Fast if keys are in the
     # correct order.
-    Append = LibLMDB::APPEND,
+    Append = LibLMDB::APPEND
     # As above, but for sorted duplicate data.
     AppendDup = LibLMDB::APPENDDUP
   end
